@@ -5,7 +5,7 @@ using System.Text;
 using System.Collections;
 using System.Collections.Generic;
 
-
+//I made a comment
 /** 
  * Auto-generated code below aims at helping you parse
  * the standard input according to the problem statement.
@@ -16,14 +16,13 @@ class Player
     {
         string[] inputs;
         // game loop
+        bool submit = false;
         while (true)
         {
             int actionCount = int.Parse(Console.ReadLine()); // the number of spells and recipes in play
-            int[] brewIdlist = new int[actionCount];
-            int[] pricelist = new int[actionCount];
-            int[,] deltalist = new int[actionCount, 4];
-            int[,] castIdlist = new int[4, 7];
-            //int[,] castDeltalist = new int[actionCount, 4];
+
+            List<Recipe> BrewList = new List<Recipe>();
+            List<Spell> SpellList = new List<Spell>();
             for (int i = 0; i < actionCount; i++)
             {
                 inputs = Console.ReadLine().Split(' ');
@@ -41,57 +40,19 @@ class Player
 
                 if (actionType == "BREW")
                 {
-                    brewIdlist[i] = actionId;
-                    pricelist[i] = price;
-                    deltalist[i, 0] = delta0;
-                    deltalist[i, 1] = delta1;
-                    deltalist[i, 2] = delta2;
-                    deltalist[i, 3] = delta3;
+                    BrewList.Add(new Recipe(actionId, delta0, delta1, delta2, delta3, price));
+                    //Console.Error.WriteLine($"Added Potion {actionId}");
                 }
 
-                if (delta0 > 0 && actionType == "CAST")
+                if (actionType == "CAST")
                 {
-                    castIdlist[0, 0] = actionId;
-                    castIdlist[0, 1] = delta0;
-                    castIdlist[0, 2] = delta1;
-                    castIdlist[0, 3] = delta2;
-                    castIdlist[0, 4] = delta3;
-                    castIdlist[0, 5] = Convert.ToInt32(castable);
-                    castIdlist[0, 6] = 1;
-                }
-                if (delta1 > 0 && actionType == "CAST")
-                {
-                    castIdlist[1, 0] = actionId;
-                    castIdlist[1, 1] = delta0;
-                    castIdlist[1, 2] = delta1;
-                    castIdlist[1, 3] = delta2;
-                    castIdlist[1, 4] = delta3;
-                    castIdlist[1, 5] = Convert.ToInt32(castable);
-                    castIdlist[1, 6] = 1;
-                }
-                if (delta2 > 0 && actionType == "CAST")
-                {
-                    castIdlist[2, 0] = actionId;
-                    castIdlist[2, 1] = delta0;
-                    castIdlist[2, 2] = delta1;
-                    castIdlist[2, 3] = delta2;
-                    castIdlist[2, 4] = delta3;
-                    castIdlist[2, 5] = Convert.ToInt32(castable);
-                    castIdlist[2, 6] = 1;
-                }
-                if (delta3 > 0 && actionType == "CAST")
-                {
-                    castIdlist[3, 0] = actionId;
-                    castIdlist[3, 1] = delta0;
-                    castIdlist[3, 2] = delta1;
-                    castIdlist[3, 3] = delta2;
-                    castIdlist[3, 4] = delta3;
-                    castIdlist[3, 5] = Convert.ToInt32(castable);
-                    castIdlist[3, 6] = 1;
+                    SpellList.Add(new Spell(actionId, delta0, delta1, delta2, delta3, castable));
+                    //Console.Error.WriteLine($"Added Spell {actionId}");
                 }
 
             }
-            int[] inventory = new int[4];
+
+            Witch myWitch = new Witch();
             for (int i = 0; i < 2; i++)
             {
                 inputs = Console.ReadLine().Split(' ');
@@ -100,122 +61,114 @@ class Player
                 int inv2 = int.Parse(inputs[2]);
                 int inv3 = int.Parse(inputs[3]);
                 int score = int.Parse(inputs[4]); // amount of rupees
+
                 if (i == 0)
-                {
-                    inventory[0] = inv0;
-                    inventory[1] = inv1;
-                    inventory[2] = inv2;
-                    inventory[3] = inv3;
-                }
-
+                    myWitch = new Witch(inv0, inv1, inv2, inv3);
+                //Console.Error.WriteLine($"Added Witch {i}");
             }
+            
 
+            // Check which recipe should be followed
+            double highestRatio = 0;
+            int index = 0;
+            int count = 0;
+            foreach (Recipe potion in BrewList)
+            {
+                //Console.Error.WriteLine(Math.Abs(potion.score()));
+                if (Math.Abs(potion.score()) > highestRatio)
+                {
+                    //Console.Error.WriteLine($"{count} selected");
+                    highestRatio = Math.Abs(potion.score());
+                    index = count;
+                }
+                count++;
+            }
+            //Now Brewlist[index] is the targeted potion
+            Console.Error.WriteLine($"Targeted Potion {BrewList[index].ID}");
 
-            //Check if ingrediants are avaiable for all casts
+            //Determain the cost of the potion, compared to the ingrediants available/
             for (int i = 0; i < 4; i++)
             {
-                for (int j = 0; j < 4; j++)
+                myWitch.neededInv[i] = myWitch.inventory[i] + BrewList[index].cost[i];
+                //Console.Error.WriteLine(myWitch.neededInv[i] + ", " + BrewList[index].cost[i]);
+            }
+            //Now myWitch.neededInv is an array of how my inventory is in comparison to the chosen recipe
+
+            //Check which spells doable with the given inventory
+            foreach (Spell spell in SpellList) {
+                for (int i = 0; i < 4; i++)
                 {
-                    if (castIdlist[i, j + 1] < 0)
+                    if (spell.doable)
                     {
-                        Console.Error.WriteLine("List " + (j + 1) + ", " + castIdlist[i, j + 1] + ", " + inventory[j] + ".");
-                        if (inventory[j] < 1)
+                        spell.doable = (myWitch.inventory[i] >= Math.Abs(spell.cost()[i]));
+                        //Console.Error.WriteLine($"{i}: {(myWitch.inventory[i] >= Math.Abs(spell.cost()[i]))}");
+                    }
+                }
+                //Console.Error.WriteLine($"Spell {spell.ID} is: {spell.doable}");
+            }
+            //Now the Spell.doable tag is set for each spell, stating if the spell is possible with present inventory or not
+
+            //Console.Error.WriteLine($"Submit: {submit}");
+            string Command = "WAIT";
+            bool flagRest = false;
+            if (submit) {
+                submit = false;
+                flagRest = true;
+                goto resting;
+            }
+
+            for (int i = 0; i < 4; i++)
+            {
+                if (myWitch.neededInv[i] < 0)
+                {
+                    //Console.Error.WriteLine($"Needed: {myWitch.neededInv[i]} for {i}");
+                    foreach (Spell spell in SpellList)
+                    {
+                        if (spell.gain()[i] > 0) 
                         {
-                            inventory[j]--;
-                            castIdlist[i, 6] = 0; //not enough items in the inventory
-                            Console.Error.WriteLine("Can't Cast");
+                            //Console.Error.WriteLine($"Spell {spell.ID} for {i}");
+                            if (spell.doable && spell.castable)
+                            {
+                                Command = $"Cast {spell.ID}";
+                                flagRest = false;
+                            }
+                            if (!spell.castable)
+                            {
+                                flagRest = true;
+                            }
+                            else if (!spell.doable && Command == "WAIT")
+                            {
+                                for (int j = 0; j < 4; j++)
+                                {
+                                    myWitch.neededInv[j] += spell.cost()[j];
+                                    //Console.Error.WriteLine($"{myWitch.neededInv[j]}, {spell.cost()[j]}");
+                                }
+                                i = -1;
+                                break;
+                            }
                         }
                     }
                 }
             }
 
-            //What's needed
-            int Index = pricelist.ToList().IndexOf(pricelist.Max());
-            Console.Error.WriteLine(Index + ", " + pricelist[Index] + ".");
-            for (int i = 0; i < 4; i++)
+        resting:
+            if (flagRest)
             {
-                inventory[i] += deltalist[Index, i];
-                Console.Error.WriteLine(inventory[i] + ", " + deltalist[Index, i] + ", ");
+                Command = "Rest";
             }
-
-            //
-            string[] writeCommand = new string[2];
-
-            //Check if enough ingrediants are in the inventory
-            bool flagRest = false;
-            if (inventory[0] < 0 && castIdlist[0, 6] == 1)
+            if (myWitch.neededInv.Min() >= 0)
             {
-                if (castIdlist[0, 5] == 1)
-                {
-                    writeCommand[0] = "Cast";
-                    writeCommand[1] = $"{castIdlist[0, 0]}";
-                    flagRest = false;
-                }
-                else
-                {
-                    flagRest = true;
-                    Console.Error.WriteLine("0");
-                }
+                Command = $"Brew {BrewList[index].ID}";
+                submit = true;
             }
-            if (inventory[1] < 0 && castIdlist[1, 6] == 1)
-            {
-                if (castIdlist[1, 5] == 1)
-                {
-                    writeCommand[0] = "Cast";
-                    writeCommand[1] = $"{castIdlist[1, 0]}";
-                    flagRest = false;
-                }
-                else
-                {
-                    flagRest = true;
-                    Console.Error.WriteLine("1");
-                }
-            }
-            if (inventory[2] < 0 && castIdlist[2, 6] == 1)
-            {
-                if (castIdlist[2, 5] == 1)
-                {
-                    writeCommand[0] = "Cast";
-                    writeCommand[1] = $"{castIdlist[2, 0]}";
-                    flagRest = false;
-                }
-                else
-                {
-                    flagRest = true;
-                    Console.Error.WriteLine("2");
-                }
-            }
-            if (inventory[3] < 0 && castIdlist[3, 6] == 1)
-            {
-                if (castIdlist[3, 5] == 1)
-                {
-                    writeCommand[0] = "Cast";
-                    writeCommand[1] = $"{castIdlist[3, 0]}";
-                    flagRest = false;
-                }
-                else
-                {
-                    flagRest = true;
-                    Console.Error.WriteLine("3");
-                }
-            }
-
-            if (inventory.Min() >= 0)
-            {
-                writeCommand[0] = "Brew";
-                writeCommand[1] = $"{brewIdlist[Index]}";
-            }
+            
 
             // Write an action using Console.WriteLine()
             // To debug: Console.Error.WriteLine("Debug messages...");
 
             // in the first league: BREW <id> | WAIT; later: BREW <id> | CAST <id> [<times>] | LEARN <id> | REST | WAIT
-            if (flagRest)
-            {
-                Console.WriteLine("Rest");
-            }
-            else
-                Console.WriteLine($"{writeCommand[0]} {writeCommand[1]}");
+
+            Console.WriteLine(Command);
         }
     }
 }
